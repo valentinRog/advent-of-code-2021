@@ -13,7 +13,7 @@ fn getBit(l: [][]const u8, i: usize, option: enum { most_common, least_common })
     };
 }
 
-pub fn solve(data: []const u8, alloc: std.mem.Allocator) !void {
+pub fn solve(alloc: std.mem.Allocator, data: []const u8) !void {
     var l = std.ArrayList([]const u8).init(alloc);
     defer l.deinit();
     {

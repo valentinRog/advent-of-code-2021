@@ -41,7 +41,7 @@ const Compute = struct {
     }
 };
 
-pub fn solve(data: []const u8, alloc: std.mem.Allocator) !void {
+pub fn solve(alloc: std.mem.Allocator, data: []const u8) !void {
     var res: u64 = 0;
     var compute = Compute.init(alloc);
     defer compute.deinit();

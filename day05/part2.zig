@@ -52,7 +52,7 @@ const Vent = struct {
     }
 };
 
-pub fn solve(data: []const u8, alloc: std.mem.Allocator) !void {
+pub fn solve(alloc: std.mem.Allocator, data: []const u8) !void {
     var l = std.ArrayList(Vent).init(alloc);
     defer l.deinit();
     {

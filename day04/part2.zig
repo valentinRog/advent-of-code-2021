@@ -74,7 +74,7 @@ const Grid = struct {
     }
 };
 
-fn compute(numbers: []i32, grids: []Grid, alloc: std.mem.Allocator) !i32 {
+fn compute(alloc: std.mem.Allocator, numbers: []i32, grids: []Grid) !i32 {
     var hs = std.AutoHashMap(i32, void).init(alloc);
     defer hs.deinit();
     var remain = std.AutoHashMap(usize, void).init(alloc);
@@ -99,7 +99,7 @@ fn compute(numbers: []i32, grids: []Grid, alloc: std.mem.Allocator) !i32 {
     unreachable;
 }
 
-pub fn solve(data: []const u8, alloc: std.mem.Allocator) !void {
+pub fn solve(alloc: std.mem.Allocator, data: []const u8) !void {
     var numbers = std.ArrayList(i32).init(alloc);
     defer numbers.deinit();
     var grids = std.ArrayList(Grid).init(alloc);
@@ -115,6 +115,6 @@ pub fn solve(data: []const u8, alloc: std.mem.Allocator) !void {
         try grids.append(try Grid.parse(block));
     }
 
-    const res = try compute(numbers.items, grids.items, alloc);
+    const res = try compute(alloc, numbers.items, grids.items);
     try std.io.getStdOut().writer().print("{}\n", .{res});
 }
