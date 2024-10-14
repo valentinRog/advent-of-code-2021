@@ -14,7 +14,7 @@ pub fn removeAllCR(data: []const u8, alloc: std.mem.Allocator) !std.ArrayList(u8
 
 pub fn main() !void {
     const stdin = std.io.getStdIn().reader();
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
     defer _ = gpa.deinit();
     const alloc = gpa.allocator();
     const raw = try stdin.readAllAlloc(alloc, 1 << 16);
