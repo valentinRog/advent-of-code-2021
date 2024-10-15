@@ -162,9 +162,7 @@ pub fn solve(alloc: std.mem.Allocator, data: []const u8) !void {
                 continue;
             }
             res += try entry.compute(alloc, sequence.items);
-            std.log.debug("{s}\n", .{sequence.items});
-            std.log.debug("{}\n", .{try entry.compute(alloc, sequence.items)});
         }
     }
-    std.log.debug("{}\n", .{res});
+    try std.io.getStdOut().writer().print("{}\n", .{res});
 }

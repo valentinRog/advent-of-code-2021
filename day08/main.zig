@@ -1,5 +1,5 @@
 const std = @import("std");
-// const part1 = @import("part1.zig");
+const part1 = @import("part1.zig");
 const part2 = @import("part2.zig");
 
 pub fn removeAllCR(alloc: std.mem.Allocator, data: []const u8) !std.ArrayList(u8) {
@@ -22,6 +22,6 @@ pub fn main() !void {
     alloc.free(raw);
     defer cleanRaw.deinit();
     const data = std.mem.trim(u8, cleanRaw.items, " \t\n");
-    // try part1.solve(alloc, data);
+    try part1.solve(data);
     try part2.solve(alloc, data);
 }
