@@ -98,34 +98,22 @@ const Entry = struct {
     }
 
     fn validSequence(self: *const @This(), alloc: std.mem.Allocator, sequence: []const u8) !bool {
-        for (self.signals.items) |s| {
-            const l = try transformWithSequence(alloc, sequence, s);
-            defer l.deinit();
-            const any: bool = out: {
-                for (digitStrings) |ds| {
-                    if (std.mem.eql(u8, l.items, ds)) {
-                        break :out true;
+        const data = [_][][]const u8{ self.signals.items, self.output.items };
+        for (data) |items| {
+            for (items) |s| {
+                const l = try transformWithSequence(alloc, sequence, s);
+                defer l.deinit();
+                const any: bool = out: {
+                    for (digitStrings) |ds| {
+                        if (std.mem.eql(u8, l.items, ds)) {
+                            break :out true;
+                        }
                     }
+                    break :out false;
+                };
+                if (!any) {
+                    return false;
                 }
-                break :out false;
-            };
-            if (!any) {
-                return false;
-            }
-        }
-        for (self.output.items) |s| {
-            const l = try transformWithSequence(alloc, sequence, s);
-            defer l.deinit();
-            const any: bool = out: {
-                for (digitStrings) |ds| {
-                    if (std.mem.eql(u8, l.items, ds)) {
-                        break :out true;
-                    }
-                }
-                break :out false;
-            };
-            if (!any) {
-                return false;
             }
         }
         return true;
@@ -180,10 +168,3 @@ pub fn solve(alloc: std.mem.Allocator, data: []const u8) !void {
     }
     std.log.debug("{}\n", .{res});
 }
-
-// ecdafgb
-// abcdefg
-
-// fdgacbe
-// ecfdbga
-// abcdef
