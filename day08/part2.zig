@@ -1,64 +1,26 @@
 const std = @import("std");
 
-const digitStrings = [_][]const u8{
-    "abcefg",
-    "cf",
-    "acdeg",
-    "acdfg",
-    "bcdf",
-    "abdfg",
-    "abdefg",
-    "acf",
-    "abcdefg",
-    "abcdfg",
-};
+const digitChar = "abcdefg";
 
-const Sequences = struct {
-    const SequencesList = std.ArrayList(std.ArrayList(u8));
+const digitStringToInt = std.StaticStringMap(u8).initComptime([_]struct { []const u8, u32 }{
+    .{ "abcefg", 0 },
+    .{ "cf", 1 },
+    .{ "acdeg", 2 },
+    .{ "acdfg", 3 },
+    .{ "bcdf", 4 },
+    .{ "abdfg", 5 },
+    .{ "abdefg", 6 },
+    .{ "acf", 7 },
+    .{ "abcdefg", 8 },
+    .{ "abcdfg", 9 },
+});
 
-    sequences: SequencesList,
+const Sequence = std.AutoHashMap(u8, u8);
 
-    fn init(alloc: std.mem.Allocator) Sequences {
-        return .{ .sequences = SequencesList.init(alloc) };
-    }
-
-    fn deinit(self: *@This()) void {
-        for (self.sequences.items) |e| {
-            e.deinit();
-        }
-        self.sequences.deinit();
-    }
-
-    fn compute(self: *@This(), alloc: std.mem.Allocator) !void {
-        var sequences = Sequences.init(alloc);
-        try sequences.sequences.append(std.ArrayList(u8).init(alloc));
-        var i: i32 = 0;
-        while (i < 7) {
-            var new_sequences = Sequences.init(alloc);
-
-            for (sequences.sequences.items) |sequence| {
-                for ('a'..'g' + 1) |c| {
-                    const needle = [_]u8{@intCast(c)};
-                    if (std.mem.count(u8, sequence.items, &needle) > 0) {
-                        continue;
-                    }
-                    var new_sequence = try sequence.clone();
-                    try new_sequence.append(@intCast(c));
-                    try new_sequences.sequences.append(new_sequence);
-                }
-            }
-            sequences.deinit();
-            sequences = new_sequences;
-            i += 1;
-        }
-        self.sequences = sequences.sequences;
-    }
-};
-
-fn transformWithSequence(alloc: std.mem.Allocator, sequence: []const u8, s: []const u8) !std.ArrayList(u8) {
+fn applySequence(alloc: std.mem.Allocator, m: *const Sequence, s: []const u8) !std.ArrayList(u8) {
     var l = std.ArrayList(u8).init(alloc);
     for (s) |c| {
-        try l.append(sequence[c - 'a']);
+        try l.append(m.get(c).?);
     }
     std.mem.sort(u8, l.items, {}, std.sort.asc(u8));
     return l;
@@ -97,21 +59,13 @@ const Entry = struct {
         return e;
     }
 
-    fn validSequence(self: *const @This(), alloc: std.mem.Allocator, sequence: []const u8) !bool {
+    fn validSequence(self: *@This(), alloc: std.mem.Allocator, m: *const Sequence) !bool {
         const data = [_][][]const u8{ self.signals.items, self.output.items };
         for (data) |items| {
             for (items) |s| {
-                const l = try transformWithSequence(alloc, sequence, s);
+                const l = try applySequence(alloc, m, s);
                 defer l.deinit();
-                const any: bool = out: {
-                    for (digitStrings) |ds| {
-                        if (std.mem.eql(u8, l.items, ds)) {
-                            break :out true;
-                        }
-                    }
-                    break :out false;
-                };
-                if (!any) {
+                if (!digitStringToInt.has(l.items)) {
                     return false;
                 }
             }
@@ -119,19 +73,43 @@ const Entry = struct {
         return true;
     }
 
-    fn compute(self: *const @This(), alloc: std.mem.Allocator, sequence: []const u8) !u64 {
-        var res: u64 = 0;
-        for (self.output.items, 0..) |s, i| {
-            const l = try transformWithSequence(alloc, sequence, s);
-            defer l.deinit();
-            var n: u64 = 0;
-            while (true) {
-                if (std.mem.eql(u8, l.items, digitStrings[n])) {
-                    break;
+    fn findSequence(self: *@This(), alloc: std.mem.Allocator) !Sequence {
+        var helper = struct {
+            alloc: std.mem.Allocator,
+            entry: *Entry,
+            m: Sequence,
+
+            fn find(selfHelper: *@This()) !?Sequence {
+                if (selfHelper.m.count() == digitChar.len) {
+                    if (try selfHelper.entry.validSequence(selfHelper.alloc, &selfHelper.m)) {
+                        return selfHelper.m;
+                    }
+                    return null;
                 }
-                n += 1;
+                for (digitChar) |c| {
+                    if (selfHelper.m.get(c)) |_| {
+                        continue;
+                    }
+                    try selfHelper.m.put(c, @intCast(selfHelper.m.count() + 'a'));
+                    if (try selfHelper.find()) |res| {
+                        return res;
+                    }
+                    _ = selfHelper.m.remove(c);
+                }
+                return null;
             }
-            res += n * std.math.pow(u64, 10, @intCast(self.output.items.len - 1 - i));
+        }{ .alloc = alloc, .entry = self, .m = Sequence.init(alloc) };
+        return (try helper.find()).?;
+    }
+
+    fn compute(self: *@This(), alloc: std.mem.Allocator) !u32 {
+        var m = try self.findSequence(alloc);
+        defer m.deinit();
+        var res: u32 = 0;
+        for (self.output.items, 0..) |s, i| {
+            const l = try applySequence(alloc, &m, s);
+            defer l.deinit();
+            res += digitStringToInt.get(l.items).? * std.math.pow(u32, 10, @intCast(self.output.items.len - i - 1));
         }
         return res;
     }
@@ -151,18 +129,12 @@ pub fn solve(alloc: std.mem.Allocator, data: []const u8) !void {
             try l.append(try Entry.parse(alloc, line));
         }
     }
-    var sequences = Sequences.init(alloc);
-    defer sequences.deinit();
-    try sequences.compute(alloc);
 
-    var res: u64 = 0;
-    for (sequences.sequences.items) |sequence| {
-        for (l.items) |*entry| {
-            if (!try entry.validSequence(alloc, sequence.items)) {
-                continue;
-            }
-            res += try entry.compute(alloc, sequence.items);
-        }
+    var res: u32 = 0;
+    for (l.items) |*e| {
+        var arena = std.heap.ArenaAllocator.init(alloc);
+        defer arena.deinit();
+        res += try e.compute(arena.allocator());
     }
     try std.io.getStdOut().writer().print("{}\n", .{res});
 }
