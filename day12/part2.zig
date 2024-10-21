@@ -61,25 +61,30 @@ const Graph = struct {
                 selfHelper.seen.deinit();
             }
 
-            fn compute(selfHelper: *@This()) !void {
+            fn compute(selfHelper: *@This(), usedDoubleSmall: bool) !void {
                 if (std.mem.eql(u8, selfHelper.l.getLast(), "end")) {
                     try selfHelper.paths.append(try selfHelper.l.clone());
                     return;
                 }
                 for (selfHelper.g.m.get(selfHelper.l.getLast()).?.items) |s| {
                     if (!std.ascii.isUpper(s[0]) and selfHelper.seen.contains(s)) {
+                        if (!usedDoubleSmall and !std.mem.eql(u8, s, "start")) {
+                            try selfHelper.l.append(s);
+                            try selfHelper.compute(true);
+                            _ = selfHelper.l.pop();
+                        }
                         continue;
                     }
                     try selfHelper.l.append(s);
                     try selfHelper.seen.put(s, void{});
-                    try selfHelper.compute();
+                    try selfHelper.compute(usedDoubleSmall);
                     _ = selfHelper.l.pop();
                     _ = selfHelper.seen.remove(s);
                 }
             }
         }.init(alloc, self);
         defer helper.deinit();
-        try helper.compute();
+        try helper.compute(false);
         return @intCast(helper.paths.items.len);
     }
 };
