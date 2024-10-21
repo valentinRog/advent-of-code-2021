@@ -21,16 +21,6 @@ const State = struct {
         self.m.deinit();
     }
 
-    fn fillWillFlash(m: *std.AutoHashMap(Point, u8), willFlash: *std.AutoHashMap(Point, void), flashed: *std.AutoHashMap(Point, void)) !void {
-        willFlash.clearRetainingCapacity();
-        var it = m.iterator();
-        while (it.next()) |kv| {
-            if (kv.value_ptr.* > 9 and !flashed.contains(kv.key_ptr.*)) {
-                try willFlash.put(kv.key_ptr.*, void{});
-            }
-        }
-    }
-
     fn nextState(self: *@This()) !u32 {
         var flashed = std.AutoHashMap(Point, void).init(self.alloc);
         defer flashed.deinit();
