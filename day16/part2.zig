@@ -95,6 +95,6 @@ fn read_packet(alloc: std.mem.Allocator, s: []const u8) !struct { n: usize, res:
 pub fn solve(alloc: std.mem.Allocator, data: []const u8) !void {
     const s = try make_bin_string(alloc, data);
     defer alloc.free(s);
-    const res = try read_packet(alloc, s);
-    try std.io.getStdOut().writer().print("{}\n", .{res.res});
+    const res = (try read_packet(alloc, s)).res;
+    try std.io.getStdOut().writer().print("{}\n", .{res});
 }
