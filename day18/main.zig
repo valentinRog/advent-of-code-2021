@@ -1,6 +1,6 @@
 const std = @import("std");
 const part1 = @import("part1.zig");
-// const part2 = @import("part2.zig");
+const part2 = @import("part2.zig");
 
 pub fn main() !void {
     const stdin = std.io.getStdIn().reader();
@@ -14,5 +14,5 @@ pub fn main() !void {
     _ = std.mem.replace(u8, trimmedRaw, "\r", "", data);
     alloc.free(raw);
     try part1.solve(alloc, data);
-    // try part2.solve(alloc, data);
+    try part2.solve(alloc, data);
 }
