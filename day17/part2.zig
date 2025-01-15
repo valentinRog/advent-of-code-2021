@@ -1,7 +1,7 @@
 const std = @import("std");
 const Complex = std.math.Complex(i32);
 
-fn get_clean_data(alloc: std.mem.Allocator, data: []const u8) ![]const u8 {
+fn getCleanData(alloc: std.mem.Allocator, data: []const u8) ![]const u8 {
     const res = try alloc.dupe(u8, data);
     for (res) |*c| {
         if (!std.ascii.isDigit(c.*) and c.* != '-') c.* = ' ';
@@ -27,7 +27,7 @@ fn hit(vx0: i32, vy0: i32, x0: i32, x1: i32, y0: i32, y1: i32) bool {
 }
 
 pub fn solve(alloc: std.mem.Allocator, data: []const u8) !void {
-    const clean_data = try get_clean_data(alloc, data);
+    const clean_data = try getCleanData(alloc, data);
     defer alloc.free(clean_data);
     var x0: i32 = undefined;
     var x1: i32 = undefined;
