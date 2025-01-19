@@ -21,20 +21,20 @@ const Vec3 = struct {
     }
 };
 
-fn hs_equal(hs1: Hs, hs2: Hs) bool {
+fn hsEqual(hs1: Hs, hs2: Hs) bool {
     var it = hs1.keyIterator();
     while (it.next()) |k| if (!hs2.contains(k.*)) return false;
     return true;
 }
 
-fn generate_rotations(alloc: std.mem.Allocator, hs: Hs) !std.ArrayList(Hs) {
+fn generateRotations(alloc: std.mem.Allocator, hs: Hs) !std.ArrayList(Hs) {
     var l = std.ArrayList(Hs).init(alloc);
     const h = struct {
         l: *const @TypeOf(l),
 
         fn contains(self: *const @This(), hs1: Hs) bool {
             for (self.l.items) |hs2| {
-                if (hs_equal(hs1, hs2)) return true;
+                if (hsEqual(hs1, hs2)) return true;
             }
             return false;
         }
@@ -93,11 +93,11 @@ const Scanners = struct {
         self.seen.deinit();
     }
 
-    fn add_scanner(self: *@This(), l: std.ArrayList(Hs)) !bool {
+    fn addScanner(self: *@This(), l: std.ArrayList(Hs)) !bool {
         for (0.., l.items) |i, hs| {
             if (self.seen.contains(i)) continue;
             for (self.l.items) |hs1| {
-                var rotatedHs = try generate_rotations(self.alloc, hs);
+                var rotatedHs = try generateRotations(self.alloc, hs);
                 defer {
                     for (rotatedHs.items) |*e| e.deinit();
                     rotatedHs.deinit();
@@ -155,7 +155,7 @@ pub fn solve(alloc: std.mem.Allocator, data: []const u8) !void {
     }
     var scanners = try Scanners.init(alloc, l.items[0]);
     defer scanners.deinit();
-    while (try scanners.add_scanner(l)) {}
+    while (try scanners.addScanner(l)) {}
 
     var res = Hs.init(alloc);
     defer res.deinit();
