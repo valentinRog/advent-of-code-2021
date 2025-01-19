@@ -1,4 +1,5 @@
 const std = @import("std");
+const Hs = std.AutoHashMap(Vec3, void);
 
 const Vec3 = struct {
     x: i32,
@@ -20,21 +21,18 @@ const Vec3 = struct {
     }
 };
 
-fn hs_equal(hs1: std.AutoHashMap(Vec3, void), hs2: std.AutoHashMap(Vec3, void)) bool {
+fn hs_equal(hs1: Hs, hs2: Hs) bool {
     var it = hs1.keyIterator();
     while (it.next()) |k| if (!hs2.contains(k.*)) return false;
     return true;
 }
 
-fn generate_rotations(
-    alloc: std.mem.Allocator,
-    hs: std.AutoHashMap(Vec3, void),
-) !std.ArrayList(std.AutoHashMap(Vec3, void)) {
-    var l = std.ArrayList(std.AutoHashMap(Vec3, void)).init(alloc);
+fn generate_rotations(alloc: std.mem.Allocator, hs: Hs) !std.ArrayList(Hs) {
+    var l = std.ArrayList(Hs).init(alloc);
     const h = struct {
         l: *const @TypeOf(l),
 
-        fn contains(self: *const @This(), hs1: std.AutoHashMap(Vec3, void)) bool {
+        fn contains(self: *const @This(), hs1: Hs) bool {
             for (self.l.items) |hs2| {
                 if (hs_equal(hs1, hs2)) return true;
             }
@@ -44,7 +42,7 @@ fn generate_rotations(
     for (0..4) |rx| {
         for (0..4) |ry| {
             for (0..4) |rz| {
-                var hs2 = std.AutoHashMap(Vec3, void).init(alloc);
+                var hs2 = Hs.init(alloc);
                 var it = hs.keyIterator();
                 while (it.next()) |v0| {
                     var v = v0.*;
@@ -64,12 +62,8 @@ fn generate_rotations(
     return l;
 }
 
-fn translate(
-    alloc: std.mem.Allocator,
-    hs0: std.AutoHashMap(Vec3, void),
-    d: Vec3,
-) !std.AutoHashMap(Vec3, void) {
-    var hs = std.AutoHashMap(Vec3, void).init(alloc);
+fn translate(alloc: std.mem.Allocator, hs0: Hs, d: Vec3) !Hs {
+    var hs = Hs.init(alloc);
     var it = hs0.keyIterator();
     while (it.next()) |v| {
         try hs.put(Vec3.new(v.x + d.x, v.y + d.y, v.z + d.z), {});
@@ -77,23 +71,14 @@ fn translate(
     return hs;
 }
 
-fn intersectionCount(hs1: std.AutoHashMap(Vec3, void), hs2: std.AutoHashMap(Vec3, void)) usize {
-    var n: usize = 0;
-    var it = hs1.keyIterator();
-    while (it.next()) |k| {
-        if (hs2.contains(k.*)) n += 1;
-    }
-    return n;
-}
-
 const Scanners = struct {
-    l: std.ArrayList(std.AutoHashMap(Vec3, void)),
+    l: std.ArrayList(Hs),
     seen: std.AutoHashMap(usize, void),
     alloc: std.mem.Allocator,
 
-    fn init(alloc: std.mem.Allocator, hs0: std.AutoHashMap(Vec3, void)) !@This() {
+    fn init(alloc: std.mem.Allocator, hs0: Hs) !@This() {
         var self = @This(){
-            .l = std.ArrayList(std.AutoHashMap(Vec3, void)).init(alloc),
+            .l = std.ArrayList(Hs).init(alloc),
             .seen = std.AutoHashMap(usize, void).init(alloc),
             .alloc = alloc,
         };
@@ -108,7 +93,7 @@ const Scanners = struct {
         self.seen.deinit();
     }
 
-    fn add_scanner(self: *@This(), l: std.ArrayList(std.AutoHashMap(Vec3, void))) !bool {
+    fn add_scanner(self: *@This(), l: std.ArrayList(Hs)) !bool {
         for (0.., l.items) |i, hs| {
             if (self.seen.contains(i)) continue;
             for (self.l.items) |hs1| {
@@ -123,13 +108,17 @@ const Scanners = struct {
                         var it2 = hs2.keyIterator();
                         while (it2.next()) |t2| {
                             const d = Vec3.new(t1.x - t2.x, t1.y - t2.y, t1.z - t2.z);
-                            var translatedHs2 = try translate(self.alloc, hs2, d);
-                            if (intersectionCount(hs1, translatedHs2) >= 12) {
+                            var n: u32 = 0;
+                            var it3 = hs2.keyIterator();
+                            while (it3.next()) |v| {
+                                if (hs1.contains(Vec3.new(v.x + d.x, v.y + d.y, v.z + d.z))) n += 1;
+                            }
+                            if (n >= 12) {
+                                const translatedHs2 = try translate(self.alloc, hs2, d);
                                 try self.l.append(translatedHs2);
                                 try self.seen.put(i, {});
                                 return true;
                             }
-                            translatedHs2.deinit();
                         }
                     }
                 }
@@ -140,7 +129,7 @@ const Scanners = struct {
 };
 
 pub fn solve(alloc: std.mem.Allocator, data: []const u8) !void {
-    var l = std.ArrayList(std.AutoHashMap(Vec3, void)).init(alloc);
+    var l = std.ArrayList(Hs).init(alloc);
     defer {
         for (l.items) |*e| e.deinit();
         l.deinit();
@@ -148,7 +137,7 @@ pub fn solve(alloc: std.mem.Allocator, data: []const u8) !void {
     {
         var it1 = std.mem.tokenizeSequence(u8, data, "\n\n");
         while (it1.next()) |block| {
-            var m = std.AutoHashMap(Vec3, void).init(alloc);
+            var m = Hs.init(alloc);
             var it2 = std.mem.tokenizeScalar(u8, block, '\n');
             _ = it2.next();
             while (it2.next()) |line| {
@@ -168,7 +157,7 @@ pub fn solve(alloc: std.mem.Allocator, data: []const u8) !void {
     defer scanners.deinit();
     while (try scanners.add_scanner(l)) {}
 
-    var res = std.AutoHashMap(Vec3, void).init(alloc);
+    var res = Hs.init(alloc);
     defer res.deinit();
     for (scanners.l.items) |hs| {
         var it = hs.keyIterator();
