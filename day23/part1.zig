@@ -225,7 +225,7 @@ const State = struct {
     }
 };
 
-fn a_star(alloc: std.mem.Allocator, shape: Shape) !i32 {
+fn aStar(alloc: std.mem.Allocator, shape: Shape) !i32 {
     const Node = struct {
         state: State,
         gCost: i32,
@@ -281,6 +281,6 @@ fn a_star(alloc: std.mem.Allocator, shape: Shape) !i32 {
 pub fn solve(alloc: std.mem.Allocator, data: []const u8) !void {
     var shape: Shape = try Shape.init(alloc, data);
     defer shape.deinit();
-    const res = try a_star(alloc, shape);
+    const res = try aStar(alloc, shape);
     try std.io.getStdOut().writer().print("{}\n", .{res});
 }
