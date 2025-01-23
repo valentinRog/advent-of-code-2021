@@ -252,7 +252,6 @@ fn a_star(alloc: std.mem.Allocator, shape: Shape) !i32 {
     while (true) {
         const node = openSet.remove();
         _ = openG.remove(node.state.a);
-        std.debug.print("{}\n", .{node.gCost + node.hCost});
         const state = node.state;
         if (state.isFinalState()) return node.gCost;
         for (0..state.a.len) |id| {
