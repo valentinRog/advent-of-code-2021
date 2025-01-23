@@ -293,7 +293,6 @@ pub fn solve(alloc: std.mem.Allocator, data: []const u8) !void {
             try newData.append('\n');
         }
     }
-    std.debug.print("{s}\n", .{newData.items});
     var shape: Shape = try Shape.init(alloc, newData.items);
     defer shape.deinit();
     const res = try a_star(alloc, shape);
