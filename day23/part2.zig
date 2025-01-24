@@ -122,20 +122,21 @@ const State = struct {
         return null;
     }
 
-    fn travelCost(self: *const @This(), alloc: std.mem.Allocator, id: usize, z1: Complex) !?i32 {
+    fn travelCosts(self: *const @This(), alloc: std.mem.Allocator, id: usize, lz: []const Complex) ![]struct { Complex, i32 } {
         const DFS = struct {
             seen: std.AutoHashMap(Complex, void),
             moveCost: i32,
             alloc: std.mem.Allocator,
             state: *const State,
             id: usize,
-            z1: Complex,
+            lz: []const Complex,
+            res: std.ArrayList(struct { Complex, i32 }),
 
             fn init(par: struct {
                 alloc: std.mem.Allocator,
                 state: *const State,
                 id: usize,
-                z1: Complex,
+                lz: []const Complex,
             }) @This() {
                 return .{
                     .seen = std.AutoHashMap(Complex, void).init(par.alloc),
@@ -143,7 +144,8 @@ const State = struct {
                     .alloc = par.alloc,
                     .state = par.state,
                     .id = par.id,
-                    .z1 = par.z1,
+                    .lz = par.lz,
+                    .res = std.ArrayList(struct { Complex, i32 }).init(par.alloc),
                 };
             }
 
@@ -151,8 +153,17 @@ const State = struct {
                 selfDFS.seen.deinit();
             }
 
-            fn dfs(selfDFS: *@This(), z: Complex, cost: i32) !?i32 {
-                if (z.re == selfDFS.z1.re and z.im == selfDFS.z1.im) return cost;
+            fn inLz(selfDFS: *const @This(), z: Complex) bool {
+                for (selfDFS.lz) |zz| {
+                    if (z.re == zz.re and z.im == zz.im) return true;
+                }
+                return false;
+            }
+
+            fn dfs(selfDFS: *@This(), z: Complex, cost: i32) !void {
+                if (selfDFS.inLz(z)) {
+                    try selfDFS.res.append(.{ z, cost });
+                }
                 for ([_]Complex{
                     Complex.init(0, -1),
                     Complex.init(1, 0),
@@ -164,36 +175,34 @@ const State = struct {
                     try selfDFS.seen.put(zz, {});
                     if (!selfDFS.state.shape.hs.contains(zz)) continue;
                     if (selfDFS.state.getId(zz)) |_| continue;
-                    if (try selfDFS.dfs(zz, cost + selfDFS.moveCost)) |v| return v;
+                    try selfDFS.dfs(zz, cost + selfDFS.moveCost);
                 }
-                return null;
             }
         };
         var dfs = DFS.init(.{
             .alloc = alloc,
             .state = self,
             .id = id,
-            .z1 = z1,
+            .lz = lz,
         });
         defer dfs.deinit();
-        return try dfs.dfs(self.a[id], 0);
+        try dfs.dfs(self.a[id], 0);
+        return dfs.res.toOwnedSlice();
     }
 
     fn generateMoves(self: *const @This(), alloc: std.mem.Allocator, id: usize) ![]struct { Complex, i32 } {
         var l = std.ArrayList(struct { Complex, i32 }).init(alloc);
         if (self.isInWrongBucket(id) or (self.isInRightBucket(id) and !self.isBucketClean(self.a[id].re))) {
-            for (Shape.topRowXs) |x| {
-                const z1 = Complex.init(x, 1);
-                if (try self.travelCost(alloc, id, z1)) |cost| {
-                    try l.append(.{ z1, cost });
-                }
-            }
-        }
-        if (self.a[id].im == 1) {
+            var lz: [Shape.topRowXs.len]Complex = undefined;
+            for (Shape.topRowXs, 0..) |x, i| lz[i] = Complex.init(x, 1);
+            const a = try self.travelCosts(alloc, id, &lz);
+            defer alloc.free(a);
+            try l.appendSlice(a);
+        } else if (self.a[id].im == 1) {
             if (self.getLowestBucketEmptyZ(self.shape.bucketXTarget[id])) |z1| {
-                if (try self.travelCost(alloc, id, z1)) |cost| {
-                    try l.append(.{ z1, cost });
-                }
+                const a = try self.travelCosts(alloc, id, &[_]Complex{z1});
+                defer alloc.free(a);
+                try l.appendSlice(a);
             }
         }
         return l.toOwnedSlice();
